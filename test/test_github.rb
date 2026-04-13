@@ -2,11 +2,16 @@ require_relative "test_helper"
 
 class TestGitHub < Minitest::Test
   def test_raises_auth_error_when_not_authenticated
-    github = GhSummary::GitHub.allocate
-    github.define_singleton_method(:default_authenticator) { false }
-    assert_raises(GhSummary::AuthError) do
-      github.send(:initialize)
+    klass = Class.new(GhSummary::GitHub) do
+      def initialize
+        raise GhSummary::AuthError, "not authenticated" unless authenticated?
+      end
+
+      def authenticated?
+        false
+      end
     end
+    assert_raises(GhSummary::AuthError) { klass.new }
   end
 
   def test_fetch_json_returns_empty_array_when_execute_returns_nil

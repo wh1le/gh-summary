@@ -15,9 +15,9 @@ class TestRunner < Minitest::Test
     assert_equal "repo", runner.send(:repository_name, item)
   end
 
-  def test_repository_name_returns_question_mark_when_missing
+  def test_repository_name_returns_nil_when_missing
     runner = build_runner
-    assert_equal "?", runner.send(:repository_name, {})
+    assert_nil runner.send(:repository_name, {})
   end
 
   def test_show_section_renders_items
@@ -124,6 +124,72 @@ class TestRunner < Minitest::Test
     runner.send(:show_recent_activity)
     output = cli.printed
     assert_includes output, "No recent events"
+  end
+
+  def test_show_profile_stats_renders_counts
+    cli = TestCLIRecorder.new
+    github = FakeGitHub.new
+    github.responses[:profile] = {"followers" => 42, "following" => 10, "public_repos" => 25}
+    runner = build_runner(cli: cli, github: github)
+    runner.send(:show_profile_stats)
+    output = cli.printed
+    assert_includes output, "Profile stats"
+    assert_includes output, "42"
+    assert_includes output, "10"
+    assert_includes output, "25"
+  end
+
+  def test_show_profile_stats_empty
+    cli = TestCLIRecorder.new
+    runner = build_runner(cli: cli)
+    runner.send(:show_profile_stats)
+    output = cli.printed
+    assert_includes output, "Could not load profile"
+  end
+
+  def test_show_top_repos_renders_table
+    cli = TestCLIRecorder.new
+    github = FakeGitHub.new
+    github.responses[:top_repos] = [
+      {"full_name" => "user/cool-project", "stargazers_count" => 120, "forks_count" => 15, "open_issues_count" => 3},
+      {"full_name" => "user/another", "stargazers_count" => 5, "forks_count" => 1, "open_issues_count" => 0}
+    ]
+    runner = build_runner(cli: cli, github: github)
+    runner.send(:show_top_repos)
+    output = cli.printed
+    assert_includes output, "Top repositories by stars"
+    assert_includes output, "user/cool-project"
+    assert_includes output, "120"
+    assert_includes output, "user/another"
+  end
+
+  def test_show_top_repos_filters_zero_stars
+    cli = TestCLIRecorder.new
+    github = FakeGitHub.new
+    github.responses[:top_repos] = [
+      {"full_name" => "user/no-stars", "stargazers_count" => 0, "forks_count" => 0, "open_issues_count" => 0}
+    ]
+    runner = build_runner(cli: cli, github: github)
+    runner.send(:show_top_repos)
+    output = cli.printed
+    assert_includes output, "No starred repositories"
+  end
+
+  def test_show_top_repos_empty
+    cli = TestCLIRecorder.new
+    runner = build_runner(cli: cli)
+    runner.send(:show_top_repos)
+    output = cli.printed
+    assert_includes output, "No starred repositories"
+  end
+
+  def test_run_short_mode_skips_profile_and_repos
+    cli = TestCLIRecorder.new
+    runner = build_runner(cli: cli, short: true)
+    runner.run
+    output = cli.printed
+    refute_includes output, "Profile stats"
+    refute_includes output, "Top repositories"
   end
 
   def test_run_short_mode_skips_recent_activity

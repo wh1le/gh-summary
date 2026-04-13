@@ -10,24 +10,49 @@ module GhSummary
     end
 
     def search_prs(**options)
-      flags = options.map { |key, value| "--#{key}=#{value}" }
-      fetch_json("search", "prs", *flags, "--json", "title,repository,url,updatedAt", "--limit", "15")
+      search("prs", "title,repository,url,updatedAt", **options)
     end
 
     def search_issues(**options)
-      flags = options.map { |key, value| "--#{key}=#{value}" }
-      fetch_json("search", "issues", *flags, "--json", "title,repository,url", "--limit", "15")
+      search("issues", "title,repository,url", **options)
     end
 
     def notifications
-      fetch_json("api", "notifications")
+      api("notifications")
     end
 
     def events(per_page: 20)
-      fetch_json("api", "events", "-f", "per_page=#{per_page}")
+      api("events", per_page: per_page)
+    end
+
+    def profile
+      result = api("user")
+      result.first || {}
+    end
+
+    def top_repos(sort: "stars", per_page: 10)
+      api("user/repos", sort: sort, per_page: per_page, direction: "desc")
     end
 
     private
+
+    def search(resource, fields, limit: 15, **options)
+      flags = options.map { |key, value| "--#{key}=#{value}" }
+      fetch_json(
+        "search",
+        resource,
+        *flags,
+        "--json",
+        fields,
+        "--limit",
+        limit.to_s
+      )
+    end
+
+    def api(endpoint, **params)
+      flags = params.flat_map { |key, value| ["-f", "#{key}=#{value}"] }
+      fetch_json("api", endpoint, *flags)
+    end
 
     def execute(*arguments)
       output, _stderr, status = Open3.capture3("gh", *arguments)

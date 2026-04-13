@@ -30,7 +30,7 @@ module GhSummary
     private
 
     def execute(*arguments)
-      output, status = Open3.capture2("gh", *arguments)
+      output, _stderr, status = Open3.capture3("gh", *arguments)
       status.success? ? output : nil
     end
 

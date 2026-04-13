@@ -8,8 +8,17 @@ Zero dependencies. Ruby + `gh` CLI.
 
 ## Install
 
+Via rubygems:
+
 ```
 gem install gh-summary
+```
+
+Or link it directly:
+
+```
+git clone https://github.com/wh1le/gh-summary.git
+ln -s "$(pwd)/gh-summary/bin/gh-summary" ~/.local/bin/gh-summary
 ```
 
 ## Requirements

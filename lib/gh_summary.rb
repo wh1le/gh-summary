@@ -1,0 +1,6 @@
+require_relative "gh_summary/version"
+require_relative "gh_summary/auth_error"
+require_relative "gh_summary/colors"
+require_relative "gh_summary/cli"
+require_relative "gh_summary/github"
+require_relative "gh_summary/runner"

@@ -79,6 +79,28 @@ class TestGitHub < Minitest::Test
     assert_equal [], github.events(per_page: 10)
   end
 
+  def test_profile_returns_hash
+    data = {"login" => "user", "followers" => 42, "following" => 10, "public_repos" => 5}
+    github = build_github(JSON.generate(data))
+    assert_equal data, github.profile
+  end
+
+  def test_profile_returns_empty_hash_on_failure
+    github = build_github(nil)
+    assert_equal({}, github.profile)
+  end
+
+  def test_top_repos_returns_parsed_results
+    repos = [{"full_name" => "user/repo", "stargazers_count" => 10}]
+    github = build_github(JSON.generate(repos))
+    assert_equal repos, github.top_repos
+  end
+
+  def test_top_repos_returns_empty_on_failure
+    github = build_github(nil)
+    assert_equal [], github.top_repos(sort: "stars", per_page: 5)
+  end
+
   private
 
   def build_github(canned_output)

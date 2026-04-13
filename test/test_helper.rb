@@ -55,4 +55,12 @@ class FakeGitHub < GhSummary::GitHub
   def events(per_page: 20)
     @responses[:events] || []
   end
+
+  def profile
+    @responses[:profile] || {}
+  end
+
+  def top_repos(sort: "stars", per_page: 10)
+    @responses[:top_repos] || []
+  end
 end

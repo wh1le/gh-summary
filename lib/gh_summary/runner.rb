@@ -2,7 +2,13 @@ module GhSummary
   class Runner
     include Colors
 
-    RELEVANT_EVENTS = %w[IssuesEvent PullRequestEvent ReleaseEvent ForkEvent WatchEvent].freeze
+    RELEVANT_EVENTS = %w[
+      IssuesEvent
+      PullRequestEvent
+      ReleaseEvent
+      ForkEvent
+      WatchEvent
+    ].freeze
 
     def initialize(short: false)
       @short_mode = short
@@ -28,6 +34,8 @@ module GhSummary
         empty: "No assigned issues", count_label: "open"
       )
       show_notifications
+      show_profile_stats unless @short_mode
+      show_top_repos unless @short_mode
       show_recent_activity unless @short_mode
       @cli.divider
       @cli.newline
@@ -36,7 +44,7 @@ module GhSummary
     private
 
     def repository_name(item)
-      item.dig("repository", "nameWithOwner") || item.dig("repository", "name") || "?"
+      item.dig("repository", "nameWithOwner") || item.dig("repository", "name")
     end
 
     def show_section(color, title, items, empty:, count_label:, empty_style: :empty)
@@ -52,38 +60,71 @@ module GhSummary
     def show_notifications
       @cli.header(MAGENTA, "Unread notifications")
       notifications = @github.notifications
-      if notifications.any?
-        grouped_notifications = notifications.group_by { |notification| notification.dig("repository", "full_name") || "unknown" }
-        grouped_notifications.each do |repository, notification_items|
-          @cli.group("#{repository} (#{notification_items.size}):")
-          notification_items.first(5).each do |notification|
-            subject_type   = notification.dig("subject", "type") || "?"
-            subject_title  = notification.dig("subject", "title") || "?"
-            reason         = notification["reason"] || "?"
-            @cli.sub_item("[#{subject_type}] #{subject_title} (#{reason})")
-          end
+      return @cli.success("All caught up!") if notifications.empty?
+
+      notifications.group_by { |n| n.dig("repository", "full_name") || "unknown" }.each do |repo, items|
+        @cli.group("#{repo} (#{items.size}):")
+        items.first(5).each do |n|
+          type   = n.dig("subject", "type") || "?"
+          title  = n.dig("subject", "title") || "?"
+          reason = n["reason"] || "?"
+          @cli.sub_item("[#{type}] #{title} (#{reason})")
         end
-        @cli.count(notifications.size, "total unread")
-      else
-        @cli.success("All caught up!")
       end
+
+      @cli.count(notifications.size, "total unread")
+    end
+
+    def show_profile_stats
+      @cli.header(BLUE, "Profile stats")
+
+      profile = @github.profile
+
+      if profile.any?
+        rows = [
+          ["Followers", profile["followers"].to_s],
+          ["Following", profile["following"].to_s],
+          ["Public repos", profile["public_repos"].to_s]
+        ]
+        @cli.table(%w[Metric Count], rows)
+      else
+        @cli.empty("Could not load profile")
+      end
+    end
+
+    def show_top_repos
+      @cli.header(YELLOW, "Top repositories by stars")
+
+      starred = @github.top_repos(sort: "stars", per_page: 10)
+        .select { |r| (r["stargazers_count"] || 0) > 0 }
+      return @cli.empty("No starred repositories") if starred.empty?
+
+      rows = starred.map do |repo|
+        [repo["full_name"] || repo["name"] || "?",
+         "★ #{repo["stargazers_count"] || 0}",
+         "⑂ #{repo["forks_count"] || 0}",
+         "⚠ #{repo["open_issues_count"] || 0}"]
+      end
+
+      @cli.table(%w[Repository Stars Forks Issues], rows)
     end
 
     def show_recent_activity
       @cli.header(CYAN, "Recent activity (your repos)")
-      all_events = @github.events(per_page: 20)
-      relevant_events = all_events.select { |event| RELEVANT_EVENTS.include?(event["type"]) }.first(10)
-      if relevant_events.any?
-        rows = relevant_events.map do |event|
-          [event.dig("repo", "name") || "?",
-           (event["type"] || "").sub("Event", ""),
-           event.dig("payload", "action") || "—",
-           (event["created_at"] || "").split("T").first]
-        end
-        @cli.table(%w[Repo Type Action Date], rows)
-      else
-        @cli.empty("No recent events")
+      relevant = @github.events(per_page: 20)
+        .select { |e| RELEVANT_EVENTS.include?(e["type"]) }
+        .first(10)
+
+      return @cli.empty("No recent events") if relevant.empty?
+
+      rows = relevant.map do |event|
+        [event.dig("repo", "name") || "?",
+         (event["type"] || "").sub("Event", ""),
+         event.dig("payload", "action") || "—",
+         (event["created_at"] || "").split("T").first]
       end
+
+      @cli.table(%w[Repo Type Action Date], rows)
     end
   end
 end

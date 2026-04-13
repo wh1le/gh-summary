@@ -17,6 +17,6 @@ Gem::Specification.new do |spec|
   spec.bindir        = "bin"
   spec.executables   = ["gh-summary"]
 
-  spec.metadata["homepage_uri"]    = spec.homepage
-  spec.metadata["source_code_uri"] = spec.homepage
+  spec.metadata["homepage_uri"]    = "https://rubygems.org/gems/gh-summary"
+  spec.metadata["source_code_uri"] = "https://github.com/wh1le/gh-summary"
 end
